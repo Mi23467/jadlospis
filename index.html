@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Nasz Jadłospis & Zakupy</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Oficjalna biblioteka bazy danych Google Firebase w chmurze -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-900 pb-28 select-none">
   <!-- GŁÓWNY NAGŁÓWEK -->
@@ -14,9 +17,8 @@
         <span>🥗</span> Nasz Jadłospis
       </h1>
       <div class="text-[10px] text-emerald-100 flex items-center gap-1.5 mt-0.5">
-        <span id="cloud-indicator" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>
-        <span id="sync-text">Lokalnie</span>
-        <button onclick="pullFromCloud()" id="btn-manual-sync" class="hidden underline text-white font-bold ml-1">Odśwież 🔄</button>
+        <span id="cloud-indicator" class="w-2.5 h-2.5 rounded-full bg-amber-300 inline-block"></span>
+        <span id="sync-text">Brak połączenia</span>
       </div>
     </div>
     <button onclick="toggleFamilyModal()" class="text-xs bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded-xl font-medium border border-emerald-500/40 flex items-center gap-1 shadow-sm">
@@ -109,40 +111,28 @@
         <button onclick="toggleFamilyModal()" class="text-slate-400 text-2xl font-bold">&times;</button>
       </div>
       <div class="space-y-2.5 text-xs text-slate-600">
-        <p>Wpisz <strong>dowolny wspólny kod rodziny</strong> (np. Wasze nazwisko). Wpisz ten sam kod na laptopie i telefonie!</p>
+        <p>Wpisz <strong>dowolne wspólne hasło lub nazwisko</strong>. Wpisz dokładnie to samo hasło na wszystkich telefonach i komputerach w domu!</p>
         <div>
-          <label class="block font-medium mb-1 text-slate-800">Wspólny kod rodziny:</label>
+          <label class="block font-medium mb-1 text-slate-800">Kod rodziny:</label>
           <input id="family-sync-code" type="text" class="w-full border rounded-xl p-2.5 text-sm font-bold uppercase tracking-wider text-center bg-slate-50" placeholder="np. KOWALSCY2026">
         </div>
       </div>
       <div class="space-y-2 pt-1">
-        <button onclick="saveAndConnectCloud()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-semibold text-xs shadow">Połącz i włącz synchronizację</button>
+        <button onclick="saveAndConnectCloud()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-semibold text-xs shadow">Połącz na żywo</button>
         <button onclick="toggleFamilyModal()" class="w-full py-2 border rounded-xl text-xs text-slate-500">Zamknij</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: NOWY PRZEPIS Z PRZYKLEJONYM PASKIEM ZAPISU -->
+  <!-- MODAL: NOWY PRZEPIS -->
   <div id="recipe-modal" class="fixed inset-0 bg-black/70 hidden flex flex-col justify-end sm:justify-center items-center z-50">
     <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-      <!-- Nagłówek modala -->
       <div class="flex justify-between items-center p-4 border-b">
         <h3 class="font-bold text-base text-slate-800">Nowy Przepis</h3>
         <button onclick="toggleRecipeModal()" class="text-slate-400 text-2xl font-bold px-2">&times;</button>
       </div>
 
-      <!-- Treść przewijana -->
       <div class="p-4 space-y-3 overflow-y-auto text-xs pb-10">
-        <!-- Import -->
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
-          <label class="block font-semibold text-xs text-emerald-800">✨ Import ze strony (wklej link):</label>
-          <div class="flex gap-2">
-            <input id="rec-import-url" type="url" placeholder="https://..." class="flex-1 border rounded-xl p-2 text-xs bg-white">
-            <button onclick="fetchRecipeFromUrl()" id="btn-import-url" class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-xl font-medium shrink-0">Pobierz 🪄</button>
-          </div>
-          <div id="import-status" class="text-[11px] font-medium hidden"></div>
-        </div>
-
         <div>
           <label class="block font-medium mb-1">Nazwa dania</label>
           <input id="rec-title" type="text" class="w-full border rounded-xl p-2.5 text-sm" placeholder="np. Domowa pizza">
@@ -181,7 +171,6 @@
         </div>
       </div>
 
-      <!-- PRZYKLEJONE PRZYCISKI ZAPISU (ZAWSZE WIDOCZNE) -->
       <div class="p-3 bg-white border-t flex gap-2 z-10 shadow-md">
         <button onclick="saveRecipe()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow">✓ Zapisz przepis</button>
         <button onclick="toggleRecipeModal()" class="px-5 py-3 border rounded-xl text-xs font-semibold text-slate-600">Anuluj</button>
@@ -306,10 +295,11 @@
       });
     });
 
-    let appData = JSON.parse(localStorage.getItem('family_meal_planner_stable_v8')) || INITIAL_DATA;
+    let appData = JSON.parse(localStorage.getItem('family_meal_planner_fb_v9')) || INITIAL_DATA;
     if (!appData.customShoppingItems) appData.customShoppingItems = [];
 
     let currentCategoryFilter = 'all';
+    let databaseRef = null;
 
     DAYS.forEach(d => {
       if(!appData.planner[d]) appData.planner[d] = {};
@@ -318,11 +308,14 @@
       });
     });
 
-    // PROSTY I NIEZAWODNY MECHANIZM CHMURY PRZEZ KEY-VALUE API
-    const CLOUD_API = "https://api.counterapi.dev/v1"; // rezerwowy lub npoint
-    function getCloudKey() {
-      return localStorage.getItem('family_active_cloud_code') || '';
-    }
+    // Otwarta darmowa baza Realtime Database
+    const fbConfig = {
+      databaseURL: "https://kuchnia-rodzinna-default-rtdb.europe-west1.firebasedatabase.app"
+    };
+
+    try {
+      firebase.initializeApp(fbConfig);
+    } catch(e) {}
 
     function toggleFamilyModal() {
       document.getElementById('family-modal').classList.toggle('hidden');
@@ -331,63 +324,39 @@
     function saveAndConnectCloud() {
       const code = document.getElementById('family-sync-code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (!code) return alert("Wpisz kod rodziny!");
-      localStorage.setItem('family_active_cloud_code', code);
-      document.getElementById('family-btn-label').innerText = code;
+      localStorage.setItem('family_cloud_code_active', code);
       toggleFamilyModal();
-      initCloudSync();
+      initFirebaseSync(code);
     }
 
-    async function initCloudSync() {
-      const code = getCloudKey();
+    function initFirebaseSync(code) {
       if (!code) return;
-
       document.getElementById('family-sync-code').value = code;
       document.getElementById('family-btn-label').innerText = code;
       document.getElementById('sync-text').innerText = `Chmura: ${code}`;
-      document.getElementById('cloud-indicator').className = "w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse";
-      document.getElementById('btn-manual-sync').classList.remove('hidden');
+      document.getElementById('cloud-indicator').className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block shadow";
 
-      await pullFromCloud();
-    }
+      databaseRef = firebase.database().ref("sync_rooms/" + code);
 
-    async function pushToCloud() {
-      const code = getCloudKey();
-      if (!code) return;
-      try {
-        await fetch(`https://kvdb.io/4y27VUXVv3a9LgZf8eW8z5/${code}`, {
-          method: 'POST',
-          body: JSON.stringify(appData)
-        });
-        document.getElementById('cloud-indicator').className = "w-2 h-2 rounded-full bg-emerald-400 inline-block";
-      } catch(e) {
-        console.warn("Chmura chwilowo niedostępna, zapisano lokalnie");
-      }
-    }
-
-    async function pullFromCloud() {
-      const code = getCloudKey();
-      if (!code) return;
-      try {
-        const res = await fetch(`https://kvdb.io/4y27VUXVv3a9LgZf8eW8z5/${code}`);
-        if (res.ok) {
-          const cloudData = await res.json();
-          if (cloudData && cloudData.recipes) {
-            appData = cloudData;
-            localStorage.setItem('family_meal_planner_stable_v8', JSON.stringify(appData));
-            refreshCurrentView();
-          }
-        } else if (res.status === 404) {
-          // Nowy kod - wrzuć stan początkowy
-          pushToCloud();
+      // Odbieranie zmian na żywo z chmury
+      databaseRef.on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val && val.recipes) {
+          appData = val;
+          localStorage.setItem('family_meal_planner_fb_v9', JSON.stringify(appData));
+          refreshCurrentView();
+        } else if (!val) {
+          // Jeśli pokój jest nowy, zapisz początkowy stan
+          databaseRef.set(appData);
         }
-      } catch(e) {
-        console.warn("Błąd pobierania z chmury");
-      }
+      });
     }
 
     function saveState() {
-      localStorage.setItem('family_meal_planner_stable_v8', JSON.stringify(appData));
-      pushToCloud();
+      localStorage.setItem('family_meal_planner_fb_v9', JSON.stringify(appData));
+      if (databaseRef) {
+        databaseRef.set(appData);
+      }
     }
 
     function refreshCurrentView() {
@@ -506,94 +475,6 @@
         appData.recipes = appData.recipes.filter(r => r.id !== id);
         saveState();
         renderRecipes();
-      }
-    }
-
-    // ODPORNY IMPORT Z LINKU
-    async function fetchRecipeFromUrl() {
-      const url = document.getElementById('rec-import-url').value.trim();
-      const statusEl = document.getElementById('import-status');
-      const btn = document.getElementById('btn-import-url');
-
-      if (!url) return alert("Wklej link!");
-
-      statusEl.className = "text-[11px] font-medium text-emerald-700";
-      statusEl.classList.remove('hidden');
-      statusEl.innerText = "Pobieram...";
-      btn.disabled = true;
-      document.getElementById('rec-url').value = url;
-
-      let html = "";
-      try {
-        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-        const json = await res.json();
-        html = json.contents;
-      } catch(e) {}
-
-      if (!html || html.length < 100) {
-        let nameGuess = url.split('/').filter(Boolean).pop() || "";
-        nameGuess = nameGuess.replace(/[-_]/g, ' ').replace(/\.html?/g, '');
-        if (nameGuess) {
-          document.getElementById('rec-title').value = nameGuess.charAt(0).toUpperCase() + nameGuess.slice(1);
-        }
-        statusEl.className = "text-[11px] font-medium text-amber-700";
-        statusEl.innerText = "Uzupełniono nazwę z adresu URL. Dokończ pola ręcznie.";
-        btn.disabled = false;
-        return;
-      }
-
-      try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-
-        let recipeObj = null;
-        const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
-
-        for (let s of scripts) {
-          try {
-            const parsed = JSON.parse(s.innerText);
-            if (parsed['@type'] === 'Recipe') { recipeObj = parsed; break; }
-            if (Array.isArray(parsed)) {
-              recipeObj = parsed.find(item => item['@type'] === 'Recipe');
-              if (recipeObj) break;
-            }
-          } catch(e) {}
-        }
-
-        let title = (recipeObj && recipeObj.name) || doc.querySelector('h1')?.innerText || doc.title?.split('|')[0];
-        if (title) document.getElementById('rec-title').value = title.trim();
-
-        if (recipeObj && (recipeObj.totalTime || recipeObj.cookTime)) {
-          document.getElementById('rec-time').value = (recipeObj.totalTime || recipeObj.cookTime).replace('PT', '').toLowerCase();
-        }
-
-        if (recipeObj && recipeObj.recipeYield) {
-          const y = parseInt(recipeObj.recipeYield);
-          if (!isNaN(y)) document.getElementById('rec-servings').value = y;
-        }
-
-        if (recipeObj && recipeObj.recipeInstructions) {
-          let steps = Array.isArray(recipeObj.recipeInstructions) ? recipeObj.recipeInstructions.map(s => s.text || s).join('\n\n') : recipeObj.recipeInstructions;
-          document.getElementById('rec-instructions').value = steps;
-        }
-
-        let ingredientsLines = [];
-        if (recipeObj && Array.isArray(recipeObj.recipeIngredient)) {
-          ingredientsLines = recipeObj.recipeIngredient.map(ing => {
-            const match = ing.match(/^([\d.,]+)\s*(g|kg|ml|l|szt|łyżk[ia]|łyżeczk[ia]|szklank[ia])?\s*(.*)$/i);
-            if (match) return `${match[3].trim()}, ${match[1].replace(',', '.')}, ${match[2] || 'szt'}, Inne / Chemia`;
-            return `${ing.trim()}, 1, szt, Inne / Chemia`;
-          });
-          document.getElementById('rec-raw-ingredients').value = ingredientsLines.join('\n');
-        }
-
-        statusEl.className = "text-[11px] font-medium text-emerald-700";
-        statusEl.innerText = "Dane pobrane pomyślnie!";
-      } catch (err) {
-        statusEl.className = "text-[11px] font-medium text-amber-700";
-        statusEl.innerText = "Uzupełnij brakujące dane ręcznie.";
-      } finally {
-        btn.disabled = false;
       }
     }
 
@@ -773,8 +654,8 @@
         const aisles = {};
         planToBuy.forEach(item => {
           const aisle = item.aisle || "Inne / Chemia";
-          if (!aisles[aisle]) aisles[aisle] = [];
-          aisles[aisle].push({ ...item, type: 'plan', originalIdx: appData.shoppingList.indexOf(item) });
+          if (!aisles[item.aisle]) aisles[item.aisle] = [];
+          aisles[item.aisle].push({ ...item, type: 'plan', originalIdx: appData.shoppingList.indexOf(item) });
         });
 
         customItems.forEach((cItem, cIdx) => {
@@ -939,13 +820,10 @@
       toggleRecipeModal();
       renderRecipes();
 
-      // czyszczenie
       document.getElementById('rec-title').value = '';
       document.getElementById('rec-url').value = '';
-      document.getElementById('rec-import-url').value = '';
       document.getElementById('rec-instructions').value = '';
       document.getElementById('rec-raw-ingredients').value = '';
-      document.getElementById('import-status').classList.add('hidden');
     }
 
     function savePantryItem() {
@@ -963,7 +841,8 @@
     }
 
     // Start
-    initCloudSync();
+    const storedCode = localStorage.getItem('family_cloud_code_active');
+    if (storedCode) initFirebaseSync(storedCode);
     switchTab('recipes');
   </script>
 </body>
