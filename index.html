@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Nasz Jadłospis & Zakupy</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Oficjalna biblioteka bazy danych Google Firebase w chmurze -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-900 pb-28 select-none">
   <!-- GŁÓWNY NAGŁÓWEK -->
@@ -16,17 +13,14 @@
       <h1 class="text-base font-bold flex items-center gap-1.5">
         <span>🥗</span> Nasz Jadłospis
       </h1>
-      <div class="text-[10px] text-emerald-100 flex items-center gap-1.5 mt-0.5">
-        <span id="cloud-indicator" class="w-2.5 h-2.5 rounded-full bg-amber-300 inline-block"></span>
-        <span id="sync-text">Brak połączenia</span>
-      </div>
+      <p class="text-[10px] text-emerald-100">Gotowy do użycia</p>
     </div>
-    <button onclick="toggleFamilyModal()" class="text-xs bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded-xl font-medium border border-emerald-500/40 flex items-center gap-1 shadow-sm">
-      <span>👨‍👩‍👧</span> <span id="family-btn-label">Współdziel</span>
+    <button onclick="toggleShareModal()" class="text-xs bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded-xl font-medium border border-emerald-500/40 flex items-center gap-1 shadow-sm">
+      <span>📲</span> <span>Prześlij domownikom</span>
     </button>
   </header>
 
-  <!-- GÓRNY PASEK ZAKŁADEK -->
+  <!-- GÓRNE ZAKŁADKI -->
   <nav class="sticky top-[58px] z-20 bg-white border-b border-slate-200 shadow-sm flex justify-around p-1 text-xs font-semibold">
     <button onclick="switchTab('recipes')" id="tab-recipes" class="flex-1 py-2.5 text-center text-emerald-600 border-b-2 border-emerald-600 flex justify-center items-center gap-1">
       <span>🍲</span> Przepisy
@@ -47,7 +41,7 @@
     <section id="view-recipes" class="space-y-3">
       <div class="flex justify-between items-center">
         <h2 class="text-base font-bold text-slate-800">Książka Przepisów</h2>
-        <button onclick="toggleRecipeModal()" class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-xl font-medium shadow-sm hover:bg-emerald-700">+ Nowy przepis</button>
+        <button onclick="openRecipeModal()" class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-xl font-medium shadow-sm hover:bg-emerald-700">+ Nowy przepis</button>
       </div>
 
       <!-- KATEGORIE -->
@@ -67,7 +61,7 @@
     <section id="view-planner" class="space-y-3 hidden">
       <div class="flex justify-between items-center">
         <h2 class="text-base font-bold text-slate-800">Planer na 7 dni</h2>
-        <span class="text-[11px] text-slate-500">Wpisz i oznacz ugotowane</span>
+        <span class="text-[11px] text-slate-500">Wybierz dania</span>
       </div>
       <div id="planner-days" class="space-y-3"></div>
     </section>
@@ -84,7 +78,6 @@
       
       <div id="shopping-list-grouped" class="space-y-3"></div>
 
-      <!-- Mamy w spiżarni -->
       <div id="pantry-available-box" class="space-y-2 pt-3 hidden">
         <div class="border-t border-slate-200 pt-2.5">
           <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">📦 W spiżarni (nie trzeba kupować)</h4>
@@ -103,24 +96,20 @@
     </section>
   </main>
 
-  <!-- MODAL: KOD RODZINY -->
-  <div id="family-modal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
+  <!-- MODAL: UDOSTĘPNIANIE LINKIEM DLA DOMOWNIKÓW -->
+  <div id="share-modal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-sm text-slate-800">👨‍👩‍👧 Współdzielenie z rodziną</h3>
-        <button onclick="toggleFamilyModal()" class="text-slate-400 text-2xl font-bold">&times;</button>
+        <h3 class="font-bold text-sm text-slate-800">📲 Wyślij jadłospis domownikom</h3>
+        <button onclick="toggleShareModal()" class="text-slate-400 text-2xl font-bold">&times;</button>
       </div>
-      <div class="space-y-2.5 text-xs text-slate-600">
-        <p>Wpisz <strong>dowolne wspólne hasło lub nazwisko</strong>. Wpisz dokładnie to samo hasło na wszystkich telefonach i komputerach w domu!</p>
-        <div>
-          <label class="block font-medium mb-1 text-slate-800">Kod rodziny:</label>
-          <input id="family-sync-code" type="text" class="w-full border rounded-xl p-2.5 text-sm font-bold uppercase tracking-wider text-center bg-slate-50" placeholder="np. KOWALSCY2026">
-        </div>
-      </div>
-      <div class="space-y-2 pt-1">
-        <button onclick="saveAndConnectCloud()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-semibold text-xs shadow">Połącz na żywo</button>
-        <button onclick="toggleFamilyModal()" class="w-full py-2 border rounded-xl text-xs text-slate-500">Zamknij</button>
-      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Kliknij poniższy przycisk, aby skopiować link. Wyślij go domownikom na Messengerze lub WhatsAppie – po otwarciu będą mieli identyczny zestaw przepisów i plan!
+      </p>
+      <button onclick="copyShareLink()" id="btn-copy-link" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs shadow">
+        Kopiuj link z jadłospisem 📋
+      </button>
+      <button onclick="toggleShareModal()" class="w-full py-2 border rounded-xl text-xs text-slate-500">Zamknij</button>
     </div>
   </div>
 
@@ -129,13 +118,13 @@
     <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
       <div class="flex justify-between items-center p-4 border-b">
         <h3 class="font-bold text-base text-slate-800">Nowy Przepis</h3>
-        <button onclick="toggleRecipeModal()" class="text-slate-400 text-2xl font-bold px-2">&times;</button>
+        <button onclick="closeRecipeModal()" class="text-slate-400 text-2xl font-bold px-2">&times;</button>
       </div>
 
       <div class="p-4 space-y-3 overflow-y-auto text-xs pb-10">
         <div>
           <label class="block font-medium mb-1">Nazwa dania</label>
-          <input id="rec-title" type="text" class="w-full border rounded-xl p-2.5 text-sm" placeholder="np. Domowa pizza">
+          <input id="rec-title" type="text" class="w-full border rounded-xl p-2.5 text-sm" placeholder="np. Naleśniki z serem">
         </div>
         <div class="grid grid-cols-3 gap-2">
           <div>
@@ -154,7 +143,7 @@
           </div>
           <div>
             <label class="block font-medium mb-1">Czas</label>
-            <input id="rec-time" type="text" placeholder="np. 30 min" class="w-full border rounded-xl p-2">
+            <input id="rec-time" type="text" placeholder="np. 25 min" class="w-full border rounded-xl p-2">
           </div>
         </div>
         <div>
@@ -167,13 +156,13 @@
         </div>
         <div class="p-3 bg-slate-50 border rounded-xl space-y-1">
           <label class="block font-medium text-slate-700">Składniki (jeden w linijce: nazwa, ilość, jednostka, dział)</label>
-          <textarea id="rec-raw-ingredients" rows="4" class="w-full border rounded-xl p-2 font-mono text-[11px]" placeholder="Mąka, 400, g, Suche&#10;Drożdże, 25, g, Nabiał"></textarea>
+          <textarea id="rec-raw-ingredients" rows="4" class="w-full border rounded-xl p-2 font-mono text-[11px]" placeholder="Mąka, 250, g, Suche&#10;Mleko, 300, ml, Nabiał&#10;Jajka, 2, szt, Nabiał"></textarea>
         </div>
       </div>
 
       <div class="p-3 bg-white border-t flex gap-2 z-10 shadow-md">
         <button onclick="saveRecipe()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow">✓ Zapisz przepis</button>
-        <button onclick="toggleRecipeModal()" class="px-5 py-3 border rounded-xl text-xs font-semibold text-slate-600">Anuluj</button>
+        <button onclick="closeRecipeModal()" class="px-5 py-3 border rounded-xl text-xs font-semibold text-slate-600">Anuluj</button>
       </div>
     </div>
   </div>
@@ -262,24 +251,35 @@
 
     const DAYS = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
 
-    const INITIAL_DATA = {
-      recipes: [
-        {
-          id: 1,
-          name: "Spaghetti Bolognese",
-          category: "Obiad",
-          servings: 4,
-          time: "35 min",
-          url: "https://kwestiasmaku.com",
-          instructions: "1. Zeszklij cebulę i czosnek.\n2. Dodaj mielone mięso i podsmaż.\n3. Wlej passatę i duś przez 25 minut.",
-          ingredients: [
-            { name: "Makaron spaghetti", amount: 400, unit: "g", aisle: "Suche / Makaron" },
-            { name: "Mięso mielone", amount: 500, unit: "g", aisle: "Mięso" },
-            { name: "Passata pomidorowa", amount: 500, unit: "ml", aisle: "Inne / Chemia" }
-          ]
-        }
-      ],
-      planner: {},
+    const DEFAULT_RECIPES = [
+      {
+        id: 1,
+        name: "Spaghetti Bolognese",
+        category: "Obiad",
+        servings: 4,
+        time: "35 min",
+        url: "",
+        instructions: "Zeszklij cebulę i czosnek. Dodaj mielone mięso i podsmaż. Wlej passatę i duś przez 25 minut.",
+        ingredients: [
+          { name: "Makaron spaghetti", amount: 400, unit: "g", aisle: "Suche / Makaron" },
+          { name: "Mięso mielone", amount: 500, unit: "g", aisle: "Mięso" },
+          { name: "Passata pomidorowa", amount: 500, unit: "ml", aisle: "Inne / Chemia" }
+        ]
+      }
+    ];
+
+    function createFreshPlanner() {
+      const p = {};
+      DAYS.forEach(d => {
+        p[d] = {};
+        MEAL_TYPES.forEach(m => { p[d][m.id] = { id: null, servings: 2, cooked: false }; });
+      });
+      return p;
+    }
+
+    let appData = {
+      recipes: DEFAULT_RECIPES,
+      planner: createFreshPlanner(),
       pantry: [
         { id: 1, name: "Makaron spaghetti", amount: 500, unit: "g" },
         { id: 2, name: "Mąka pszenna", amount: 1000, unit: "g" }
@@ -288,86 +288,50 @@
       customShoppingItems: []
     };
 
-    DAYS.forEach(day => {
-      INITIAL_DATA.planner[day] = {};
-      MEAL_TYPES.forEach(m => {
-        INITIAL_DATA.planner[day][m.id] = { id: null, servings: 2, cooked: false };
-      });
-    });
-
-    let appData = JSON.parse(localStorage.getItem('family_meal_planner_fb_v9')) || INITIAL_DATA;
-    if (!appData.customShoppingItems) appData.customShoppingItems = [];
-
-    let currentCategoryFilter = 'all';
-    let databaseRef = null;
-
-    DAYS.forEach(d => {
-      if(!appData.planner[d]) appData.planner[d] = {};
-      MEAL_TYPES.forEach(m => {
-        if(!appData.planner[d][m.id]) appData.planner[d][m.id] = { id: null, servings: 2, cooked: false };
-      });
-    });
-
-    // Otwarta darmowa baza Realtime Database
-    const fbConfig = {
-      databaseURL: "https://kuchnia-rodzinna-default-rtdb.europe-west1.firebasedatabase.app"
-    };
-
+    // Wczytanie z pamięci lokalnej
     try {
-      firebase.initializeApp(fbConfig);
+      const local = localStorage.getItem('family_meal_planner_solid_v1');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed.recipes && parsed.recipes.length) appData = parsed;
+      }
     } catch(e) {}
 
-    function toggleFamilyModal() {
-      document.getElementById('family-modal').classList.toggle('hidden');
-    }
-
-    function saveAndConnectCloud() {
-      const code = document.getElementById('family-sync-code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (!code) return alert("Wpisz kod rodziny!");
-      localStorage.setItem('family_cloud_code_active', code);
-      toggleFamilyModal();
-      initFirebaseSync(code);
-    }
-
-    function initFirebaseSync(code) {
-      if (!code) return;
-      document.getElementById('family-sync-code').value = code;
-      document.getElementById('family-btn-label').innerText = code;
-      document.getElementById('sync-text').innerText = `Chmura: ${code}`;
-      document.getElementById('cloud-indicator').className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block shadow";
-
-      databaseRef = firebase.database().ref("sync_rooms/" + code);
-
-      // Odbieranie zmian na żywo z chmury
-      databaseRef.on('value', (snapshot) => {
-        const val = snapshot.val();
-        if (val && val.recipes) {
-          appData = val;
-          localStorage.setItem('family_meal_planner_fb_v9', JSON.stringify(appData));
-          refreshCurrentView();
-        } else if (!val) {
-          // Jeśli pokój jest nowy, zapisz początkowy stan
-          databaseRef.set(appData);
+    // Wczytanie z linku (jeśli otwarto link od kogoś)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const dataParam = urlParams.get('d');
+      if (dataParam) {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(dataParam))));
+        if (decoded.recipes) {
+          appData = decoded;
+          localStorage.setItem('family_meal_planner_solid_v1', JSON.stringify(appData));
+          window.history.replaceState({}, document.title, window.location.pathname);
+          alert("Pomyślnie zaimportowano jadłospis z udostępnionego linku!");
         }
-      });
-    }
+      }
+    } catch(e) {}
+
+    let currentCategoryFilter = 'all';
 
     function saveState() {
-      localStorage.setItem('family_meal_planner_fb_v9', JSON.stringify(appData));
-      if (databaseRef) {
-        databaseRef.set(appData);
-      }
+      localStorage.setItem('family_meal_planner_solid_v1', JSON.stringify(appData));
     }
 
-    function refreshCurrentView() {
-      renderRecipes();
-      renderPlanner();
-      renderShopping();
-      renderPantry();
+    function toggleShareModal() {
+      document.getElementById('share-modal').classList.toggle('hidden');
     }
 
-    function getSortedRecipes() {
-      return [...appData.recipes].sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+    function copyShareLink() {
+      const str = btoa(unescape(encodeURIComponent(JSON.stringify(appData))));
+      const shareUrl = window.location.origin + window.location.pathname + '?d=' + str;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        const btn = document.getElementById('btn-copy-link');
+        btn.innerText = "Skopiowano do schowka! ✓";
+        setTimeout(() => { btn.innerText = "Kopiuj link z jadłospisem 📋"; }, 2500);
+      }).catch(() => {
+        prompt("Skopiuj ten link ręcznie:", shareUrl);
+      });
     }
 
     function switchTab(tab) {
@@ -401,6 +365,10 @@
       renderRecipes();
     }
 
+    function getSortedRecipes() {
+      return [...appData.recipes].sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+    }
+
     function renderRecipes() {
       const container = document.getElementById('recipes-list');
       let list = getSortedRecipes();
@@ -410,7 +378,7 @@
       }
 
       if(!list.length) {
-        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Brak przepisów w tej kategorii.</div>`;
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Brak przepisów w tej kategorii. Kliknij "+ Nowy przepis" powyżej.</div>`;
         return;
       }
 
@@ -476,6 +444,56 @@
         saveState();
         renderRecipes();
       }
+    }
+
+    function openRecipeModal() {
+      document.getElementById('recipe-modal').classList.remove('hidden');
+    }
+
+    function closeRecipeModal() {
+      document.getElementById('recipe-modal').classList.add('hidden');
+    }
+
+    function saveRecipe() {
+      const title = document.getElementById('rec-title').value.trim();
+      const cat = document.getElementById('rec-cat').value;
+      const servings = parseInt(document.getElementById('rec-servings').value) || 4;
+      const time = document.getElementById('rec-time').value.trim() || '20 min';
+      const url = document.getElementById('rec-url').value.trim();
+      const instructions = document.getElementById('rec-instructions').value.trim();
+      const raw = document.getElementById('rec-raw-ingredients').value.trim();
+
+      if (!title) return alert("Podaj nazwę przepisu!");
+
+      const ingredients = raw.split('\n').filter(Boolean).map(line => {
+        const parts = line.split(',').map(s => s.trim());
+        return {
+          name: parts[0] || "Składnik",
+          amount: parseFloat(parts[1]) || 1,
+          unit: parts[2] || "szt",
+          aisle: parts[3] || "Inne / Chemia"
+        };
+      });
+
+      appData.recipes.push({
+        id: Date.now(),
+        name: title,
+        category: cat,
+        servings,
+        time,
+        url,
+        instructions,
+        ingredients
+      });
+
+      saveState();
+      closeRecipeModal();
+      renderRecipes();
+
+      document.getElementById('rec-title').value = '';
+      document.getElementById('rec-url').value = '';
+      document.getElementById('rec-instructions').value = '';
+      document.getElementById('rec-raw-ingredients').value = '';
     }
 
     // PLANER
@@ -559,12 +577,13 @@
 
         entry.cooked = true;
         saveState();
-        refreshCurrentView();
+        renderPlanner();
+        renderPantry();
         if (deducted.length) alert(`Ugotowane! Odjęto ze spiżarni:\n` + deducted.join('\n'));
       } else {
         entry.cooked = false;
         saveState();
-        refreshCurrentView();
+        renderPlanner();
       }
     }
 
@@ -654,8 +673,8 @@
         const aisles = {};
         planToBuy.forEach(item => {
           const aisle = item.aisle || "Inne / Chemia";
-          if (!aisles[item.aisle]) aisles[item.aisle] = [];
-          aisles[item.aisle].push({ ...item, type: 'plan', originalIdx: appData.shoppingList.indexOf(item) });
+          if (!aisles[aisle]) aisles[aisle] = [];
+          aisles[aisle].push({ ...item, type: 'plan', originalIdx: appData.shoppingList.indexOf(item) });
         });
 
         customItems.forEach((cItem, cIdx) => {
@@ -776,54 +795,8 @@
       renderPantry();
     }
 
-    function toggleRecipeModal() {
-      document.getElementById('recipe-modal').classList.toggle('hidden');
-    }
-
     function togglePantryModal() {
       document.getElementById('pantry-modal').classList.toggle('hidden');
-    }
-
-    function saveRecipe() {
-      const title = document.getElementById('rec-title').value.trim();
-      const cat = document.getElementById('rec-cat').value;
-      const servings = parseInt(document.getElementById('rec-servings').value) || 4;
-      const time = document.getElementById('rec-time').value.trim() || '20 min';
-      const url = document.getElementById('rec-url').value.trim();
-      const instructions = document.getElementById('rec-instructions').value.trim();
-      const raw = document.getElementById('rec-raw-ingredients').value.trim();
-
-      if (!title) return alert("Podaj nazwę przepisu!");
-
-      const ingredients = raw.split('\n').filter(Boolean).map(line => {
-        const parts = line.split(',').map(s => s.trim());
-        return {
-          name: parts[0] || "Składnik",
-          amount: parseFloat(parts[1]) || 1,
-          unit: parts[2] || "szt",
-          aisle: parts[3] || "Inne / Chemia"
-        };
-      });
-
-      appData.recipes.push({
-        id: Date.now(),
-        name: title,
-        category: cat,
-        servings,
-        time,
-        url,
-        instructions,
-        ingredients
-      });
-
-      saveState();
-      toggleRecipeModal();
-      renderRecipes();
-
-      document.getElementById('rec-title').value = '';
-      document.getElementById('rec-url').value = '';
-      document.getElementById('rec-instructions').value = '';
-      document.getElementById('rec-raw-ingredients').value = '';
     }
 
     function savePantryItem() {
@@ -841,8 +814,6 @@
     }
 
     // Start
-    const storedCode = localStorage.getItem('family_cloud_code_active');
-    if (storedCode) initFirebaseSync(storedCode);
     switchTab('recipes');
   </script>
 </body>
